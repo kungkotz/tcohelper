@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Delay Calc" />
+<meta name="theme-color" id="theme-meta" content="#0a0a0f" />
+<link rel="manifest" href="manifest.json" />
+<title>Delay Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Dark theme (default) ── */
+:root {
+  --bg:#0a0a0f; --surface:#13131a; --surface2:#1c1c27;
+  --border:rgba(255,255,255,0.09); --border-hi:rgba(255,255,255,0.22);
+  --text:#f0f0f5; --muted:rgba(240,240,245,0.45); --hint:rgba(240,240,245,0.22);
+  --accent:#4f8fff; --accent-bg:rgba(79,143,255,0.13);
+  --danger:#ff5c5c; --danger-bg:rgba(255,92,92,0.12);
+  --success:#3ecf8e; --success-bg:rgba(62,207,142,0.12);
+  --amber:#f5a623; --amber-bg:rgba(245,166,35,0.12);
+  --radius:12px; --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
+}
+
+/* ── Light / Aviator theme ── */
+body.light {
+  --bg:#f0f3f1; --surface:#ffffff; --surface2:#e8edea;
+  --border:rgba(20,40,80,0.1); --border-hi:rgba(20,40,80,0.3);
+  --text:#142850; --muted:rgba(20,40,80,0.55); --hint:rgba(20,40,80,0.28);
+  --accent:#142850; --accent-bg:rgba(20,40,80,0.08);
+  --danger:#b83232; --danger-bg:rgba(184,50,50,0.09);
+  --success:#1e6644; --success-bg:rgba(30,102,68,0.09);
+  --amber:#8a6200; --amber-bg:rgba(138,98,0,0.09);
+}
+body.light .tab-btn.active { background:#142850; border-color:#142850; color:#fff; }
+body.light .calc-btn { background:#142850; }
+body.light .header-icon { background:#142850; }
+body.light .header-icon svg { stroke:#fff; }
+
+html { background: var(--bg); }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 60px;
+}
+
+/* ── Theme bar — always on top, respects notch ── */
+.theme-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+}
+.theme-select {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 38px;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 6px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0;
+  max-width: 480px;
+  margin: 0 auto;
+}
+@media(min-width:600px){ .tab-bar { padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 0; } }
+.tab-btn {
+  flex: 1; height: 38px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--sans); font-size: 12px; font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active { background: var(--accent-bg); border-color: var(--border-hi); color: var(--accent); }
+.tab-btn:not(.active):hover { border-color: var(--border-hi); color: var(--text); }
+
+.theme-row {
+  max-width: 480px; margin: 0 auto;
+  padding: 8px 16px 0;
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+}
+.theme-toggle {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 20px;
+  padding: 5px 14px;
+  cursor: pointer;
+  min-width: 64px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Page ── */
+.page { max-width: 480px; margin: 0 auto; padding: 20px 20px 0; }
+@media(min-width:600px){ .page { padding: 24px 24px 0; } }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Header ── */
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; margin-top: 20px; }
+.header-icon { width: 40px; height: 40px; background: var(--accent-bg); border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-icon svg { width: 20px; height: 20px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+
+.section-label { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); margin: 0 0 8px 2px; }
+
+/* ── Fields ── */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+.field { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px 10px; transition: border-color 0.15s, background 0.15s; cursor: text; }
+.field:focus-within { border-color: var(--border-hi); background: var(--surface2); }
+.field.field-invalid { border-color: var(--danger) !important; }
+.field-inline-err { display: none; font-family: var(--mono); font-size: 10px; color: var(--danger); margin-top: 4px; }
+.field-code { font-size: 14px; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px; }
+.field input { width: 100%; background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); caret-color: var(--accent); padding: 0; line-height: 1.2; }
+.field input::placeholder { color: var(--hint); font-size: 20px; font-weight: 500; }
+
+.mtt-row { margin-bottom: 24px; }
+.field-wide { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px 10px; transition: border-color 0.15s, background 0.15s; cursor: text; display: flex; align-items: center; gap: 12px; }
+.field-wide:focus-within { border-color: var(--border-hi); background: var(--surface2); }
+.field-wide-left { flex: 1; }
+.field-wide-left .field-code { margin-bottom: 0; }
+.field-wide-right input { background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--text); caret-color: var(--accent); width: 64px; text-align: right; padding: 0; }
+.field-wide-right input::placeholder { color: var(--hint); font-size: 22px; font-weight: 500; }
+
+/* ── Buttons ── */
+.calc-btn { width: 100%; height: 52px; background: var(--accent); border: none; border-radius: var(--radius); font-family: var(--sans); font-size: 15px; font-weight: 700; color: #fff; cursor: pointer; letter-spacing: 0.01em; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s, transform 0.1s; margin-bottom: 20px; }
+.calc-btn:hover { opacity: 0.9; }
+.calc-btn:active { opacity: 0.8; transform: scale(0.99); }
+.calc-btn svg { width: 17px; height: 17px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Error / Result ── */
+.error-box { background: var(--danger-bg); border: 1px solid rgba(255,92,92,0.2); border-radius: var(--radius); padding: 12px 16px; font-family: var(--mono); font-size: 13px; color: var(--danger); margin-bottom: 16px; display: none; }
+.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: none; margin-bottom: 12px; animation: up 0.22s cubic-bezier(0.16,1,0.3,1); }
+@keyframes up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.result-hero { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
+.result-hero-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.result-hero-value { font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -0.03em; }
+.result-hero-value.delay { color: var(--danger); }
+.result-hero-value.ontime { color: var(--success); font-size: 26px; }
+.result-hero-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+.result-section { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hint); padding: 8px 18px 4px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.result-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.result-row:last-child { border-bottom: none; }
+.result-row-title { font-size: 13px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.result-row-note { font-family: var(--mono); font-size: 11px; color: var(--hint); margin-top: 4px; line-height: 1.6; }
+.result-row-value { font-family: var(--mono); font-size: 17px; font-weight: 500; flex-shrink: 0; text-align: right; padding-top: 1px; }
+.result-row-value.accent { color: var(--accent); }
+.result-row-value.danger { color: var(--danger); }
+.result-row-value.success { color: var(--success); }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.06em; }
+.badge-yes { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(255,92,92,0.2); }
+.badge-no  { background: var(--success-bg); color: var(--success); border: 1px solid rgba(62,207,142,0.2); }
+.clear-btn-small { width: 100%; height: 44px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: border-color 0.15s, color 0.15s; display: none; }
+.clear-btn-small:hover { border-color: var(--border-hi); color: var(--text); }
+
+/* ── Timestamps ── */
+.pair-group { margin-bottom: 20px; }
+.pair-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pair-divider-label { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.pair-divider-line { flex: 1; height: 1px; background: var(--border); }
+.ts-row { display: flex; margin-bottom: 8px; }
+.ts-stamp-btn { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s; display: flex; align-items: center; overflow: hidden; width: 100%; }
+.ts-stamp-btn:hover { border-color: var(--border-hi); }
+.ts-stamp-btn.stamped { border-color: rgba(79,143,255,0.3); background: var(--accent-bg); }
+.ts-btn-main { flex: 1; padding: 14px 10px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: background 0.15s; }
+.ts-btn-label { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.5; display: block; white-space: normal; word-break: break-word; }
+.ts-btn-time { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--accent); line-height: 1.3; margin-top: 3px; display: none; }
+.ts-btn-time.visible { display: block; }
+.ts-btn-hint { font-family: var(--mono); font-size: 10px; color: var(--hint); margin-top: 3px; display: none; }
+.ts-btn-hint.visible { display: block; }
+.ts-clear-zone { width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: transparent; border-left: none; transition: width 0.18s, background 0.18s; cursor: pointer; flex-shrink: 0; align-self: stretch; }
+.ts-stamp-btn.stamped .ts-clear-zone { width: 20%; border-left: 1px solid var(--border); }
+.ts-clear-zone:hover, .ts-clear-zone:active { background: var(--danger-bg) !important; border-left-color: rgba(255,92,92,0.3) !important; }
+.ts-clear-zone svg { width: 14px; height: 14px; stroke: var(--danger); fill: none; stroke-width: 2; stroke-linecap: round; opacity: 0; transition: opacity 0.18s; flex-shrink: 0; }
+.ts-stamp-btn.stamped .ts-clear-zone svg { opacity: 1; }
+.pair-footer { display: none; justify-content: flex-end; margin-top: 4px; margin-bottom: 4px; }
+.pair-footer.visible { display: flex; }
+.pair-footer-text { font-family: var(--mono); font-size: 12px; color: var(--amber); background: var(--amber-bg); border: 1px solid rgba(245,166,35,0.2); border-radius: 20px; padding: 2px 10px; }
+.clear-all-ts { width: 100%; height: 44px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-top: 8px; }
+.clear-all-ts:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface2); border: 1px solid var(--border-hi); border-radius: 16px; padding: 24px 20px 20px; width: 100%; max-width: 320px; transform: translateY(16px); transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.modal-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+.modal-input-wrap { background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+.modal-input-wrap svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.modal-input { background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--text); caret-color: var(--accent); width: 100%; padding: 0; }
+.modal-input::placeholder { color: var(--hint); }
+.modal-error { font-family: var(--mono); font-size: 12px; color: var(--danger); margin-top: -12px; margin-bottom: 14px; display: none; }
+.modal-actions { display: flex; gap: 8px; }
+.modal-cancel { flex: 1; height: 44px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.modal-cancel:hover { border-color: var(--border-hi); color: var(--text); }
+.modal-save { flex: 1; height: 44px; background: var(--accent); border: none; border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
+.modal-save:hover { opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<!-- Tabs + theme picker in one row -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('delay',this)">Delay Calculator</button>
+  <button class="tab-btn" onclick="switchTab('timestamps',this)">Timestamps</button>
+</div>
+
+
+<div class="page">
+
+  <!-- DELAY TAB -->
+  <div class="tab-panel active" id="tab-delay">
+    <div class="header">
+      <div class="header-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg></div>
+      <div><h1>Delay Calculator</h1></div>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"><span id="theme-toggle-label">Dark</span></button>
+    </div>
+
+    <div class="section-label">Arrival</div>
+    <div class="field-row">
+      <div class="field" onclick="this.querySelector('input').focus()">
+        <span class="field-code">SIBT</span>
+        <input type="text" id="sibt" inputmode="numeric" placeholder="00:00" maxlength="5" autocomplete="off" />
+        <span class="field-inline-err">Invalid time</span>
+      </div>
+      <div class="field" onclick="this.querySelector('input').focus()">
+        <span class="field-code">AIBT</span>
+        <input type="text" id="aibt" inputmode="numeric" placeholder="00:00" maxlength="5" autocomplete="off" />
+        <span class="field-inline-err">Invalid time</span>
+      </div>
+    </div>
+
+    <div class="section-label">Departure</div>
+    <div class="field-row">
+      <div class="field" onclick="this.querySelector('input').focus()">
+        <span class="field-code">SOBT</span>
+        <input type="text" id="sobt" inputmode="numeric" placeholder="00:00" maxlength="5" autocomplete="off" />
+        <span class="field-inline-err">Invalid time</span>
+      </div>
+      <div class="field" onclick="this.querySelector('input').focus()">
+        <span class="field-code">AOBT</span>
+        <input type="text" id="aobt" inputmode="numeric" placeholder="00:00" maxlength="5" autocomplete="off" />
+        <span class="field-inline-err">Invalid time</span>
+      </div>
+    </div>
+
+    <div class="section-label">Turnaround</div>
+    <div class="mtt-row">
+      <div class="field-wide" onclick="this.querySelector('input').focus()">
+        <div class="field-wide-left"><span class="field-code">Turnaround Time</span></div>
+        <div class="field-wide-right">
+          <input type="text" id="mtt" inputmode="numeric" placeholder="00" maxlength="3" autocomplete="off" />
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Calculate
+    </button>
+
+    <div class="error-box" id="error"></div>
+    <div class="result-card" id="result"></div>
+    <button class="clear-btn-small" id="clear-btn" onclick="clearDelay()">Clear all fields</button>
+  </div>
+
+  <!-- TIMESTAMPS TAB -->
+  <div class="tab-panel" id="tab-timestamps">
+    <div class="header">
+      <div class="header-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div><h1>Timestamps</h1></div>
+      <button class="theme-toggle" onclick="toggleTheme()"><span id="theme-toggle-label-2">Dark</span></button>
+    </div>
+
+    <!-- Deboarding -->
+    <div class="pair-group">
+      <div class="pair-divider"><span class="pair-divider-label">Deboarding</span><div class="pair-divider-line"></div></div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-deboard-start">
+          <span class="ts-btn-main" onclick="handlePress('deboard-start')"><span class="ts-btn-label">Deboarding Started</span><span class="ts-btn-time" id="time-deboard-start"></span><span class="ts-btn-hint" id="hint-deboard-start">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-deboard-start" onclick="clearStamp('deboard-start')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-deboard-end">
+          <span class="ts-btn-main" onclick="handlePress('deboard-end')"><span class="ts-btn-label">Deboarding Ended</span><span class="ts-btn-time" id="time-deboard-end"></span><span class="ts-btn-hint" id="hint-deboard-end">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-deboard-end" onclick="clearStamp('deboard-end')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="pair-footer" id="dur-deboarding"><span class="pair-footer-text" id="dur-text-deboarding"></span></div>
+    </div>
+
+    <!-- Fueling -->
+    <div class="pair-group">
+      <div class="pair-divider"><span class="pair-divider-label">Fueling</span><div class="pair-divider-line"></div></div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-fuel-start">
+          <span class="ts-btn-main" onclick="handlePress('fuel-start')"><span class="ts-btn-label">Fueling Started</span><span class="ts-btn-time" id="time-fuel-start"></span><span class="ts-btn-hint" id="hint-fuel-start">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-fuel-start" onclick="clearStamp('fuel-start')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-fuel-end">
+          <span class="ts-btn-main" onclick="handlePress('fuel-end')"><span class="ts-btn-label">Fueling Ended</span><span class="ts-btn-time" id="time-fuel-end"></span><span class="ts-btn-hint" id="hint-fuel-end">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-fuel-end" onclick="clearStamp('fuel-end')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="pair-footer" id="dur-fueling"><span class="pair-footer-text" id="dur-text-fueling"></span></div>
+    </div>
+
+    <!-- Cleaning -->
+    <div class="pair-group">
+      <div class="pair-divider"><span class="pair-divider-label">Cleaning</span><div class="pair-divider-line"></div></div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-clean-start">
+          <span class="ts-btn-main" onclick="handlePress('clean-start')"><span class="ts-btn-label">Cleaning Started</span><span class="ts-btn-time" id="time-clean-start"></span><span class="ts-btn-hint" id="hint-clean-start">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-clean-start" onclick="clearStamp('clean-start')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-clean-end">
+          <span class="ts-btn-main" onclick="handlePress('clean-end')"><span class="ts-btn-label">Cleaning Ended</span><span class="ts-btn-time" id="time-clean-end"></span><span class="ts-btn-hint" id="hint-clean-end">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-clean-end" onclick="clearStamp('clean-end')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="pair-footer" id="dur-cleaning"><span class="pair-footer-text" id="dur-text-cleaning"></span></div>
+    </div>
+
+    <!-- Boarding -->
+    <div class="pair-group">
+      <div class="pair-divider"><span class="pair-divider-label">Boarding</span><div class="pair-divider-line"></div></div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-pax-first">
+          <span class="ts-btn-main" onclick="handlePress('pax-first')"><span class="ts-btn-label">First Pax In</span><span class="ts-btn-time" id="time-pax-first"></span><span class="ts-btn-hint" id="hint-pax-first">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-pax-first" onclick="clearStamp('pax-first')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="ts-row">
+        <button class="ts-stamp-btn" id="btn-pax-last">
+          <span class="ts-btn-main" onclick="handlePress('pax-last')"><span class="ts-btn-label">Last Pax In</span><span class="ts-btn-time" id="time-pax-last"></span><span class="ts-btn-hint" id="hint-pax-last">tap to edit</span></span>
+          <span class="ts-clear-zone" id="clr-pax-last" onclick="clearStamp('pax-last')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+        </button>
+      </div>
+      <div class="pair-footer" id="dur-boarding"><span class="pair-footer-text" id="dur-text-boarding"></span></div>
+    </div>
+
+    <button class="clear-all-ts" onclick="clearAllStamps()">Clear all timestamps</button>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Edit time</div>
+    <div class="modal-sub">Enter time in 24h format (HH:MM)</div>
+    <div class="modal-input-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+      <input class="modal-input" id="modal-input" type="text" inputmode="numeric" placeholder="00:00" maxlength="5" autocomplete="off" />
+    </div>
+    <div class="modal-error" id="modal-error">Please enter a valid time (HH:MM)</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-save" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Theme ── */
+var _theme = 'dark';
+function setTheme(t) {
+  _theme = t;
+  document.body.className = t === 'light' ? 'light' : '';
+  document.getElementById('theme-meta').setAttribute('content', t === 'light' ? '#f0f3f1' : '#0a0a0f');
+  ['theme-toggle-label','theme-toggle-label-2'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = t === 'light' ? 'Light' : 'Dark';
+  });
+  try { localStorage.setItem('dc-theme', t); } catch(e) {}
+}
+function toggleTheme() {
+  setTheme(_theme === 'dark' ? 'light' : 'dark');
+}
+(function() {
+  var saved;
+  try { saved = localStorage.getItem('dc-theme'); } catch(e) {}
+  if (!saved) {
+    saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  setTheme(saved);
+})();
+
+/* ── Tabs ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ── Delay calculator ── */
+function toMins(str) {
+  var m = str.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  var h = parseInt(m[1]), mn = parseInt(m[2]);
+  if (h > 23 || mn > 59) return null;
+  return h * 60 + mn;
+}
+function fmt(mins) {
+  var a = Math.abs(mins), h = Math.floor(a/60), m = a % 60;
+  if (h === 0) return m + ' min';
+  return h + 'h ' + (m ? m + 'min' : '');
+}
+function fmtT(mins) {
+  var w = ((mins % 1440) + 1440) % 1440;
+  return String(Math.floor(w/60)).padStart(2,'0') + ':' + String(w%60).padStart(2,'0');
+}
+function resolve(t, ref) {
+  return [t-1440, t, t+1440].reduce(function(b,c) { return Math.abs(c-ref) < Math.abs(b-ref) ? c : b; });
+}
+
+var FIELD_ORDER = ['sibt','aibt','sobt','aobt','mtt'];
+function autoColon(el) {
+  el.addEventListener('input', function() {
+    var v = this.value.replace(/\D/g,'');
+    if (v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2,4);
+    this.value = v;
+    if (v.length === 5) {
+      var parts = v.match(/^(\d{2}):(\d{2})$/);
+      var valid = parts && parseInt(parts[1]) <= 23 && parseInt(parts[2]) <= 59;
+      var fe = this.closest('.field');
+      var es = fe ? fe.querySelector('.field-inline-err') : null;
+      if (valid) {
+        if (es) es.style.display = 'none';
+        fe && fe.classList.remove('field-invalid');
+        var idx = FIELD_ORDER.indexOf(this.id);
+        if (idx !== -1 && idx < FIELD_ORDER.length - 1) {
+          var next = document.getElementById(FIELD_ORDER[idx+1]);
+          if (next) { next.focus(); next.select(); }
+        }
+      } else {
+        if (es) es.style.display = 'block';
+        fe && fe.classList.add('field-invalid');
+      }
+    } else {
+      var fe2 = this.closest('.field');
+      var es2 = fe2 ? fe2.querySelector('.field-inline-err') : null;
+      if (es2) es2.style.display = 'none';
+      fe2 && fe2.classList.remove('field-invalid');
+    }
+  });
+  el.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); calculate(); } });
+}
+['sibt','aibt','sobt','aobt'].forEach(function(id) { autoColon(document.getElementById(id)); });
+var mttEl = document.getElementById('mtt');
+mttEl.addEventListener('input', function() { this.value = this.value.replace(/\D/g,''); });
+mttEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); calculate(); } });
+
+function calculate() {
+  var errEl = document.getElementById('error');
+  var resEl = document.getElementById('result');
+  var clrBtn = document.getElementById('clear-btn');
+  errEl.style.display = 'none'; resEl.style.display = 'none'; clrBtn.style.display = 'none';
+  var sibtV = toMins(document.getElementById('sibt').value);
+  var aibtV = toMins(document.getElementById('aibt').value);
+  var sobtV = toMins(document.getElementById('sobt').value);
+  var aobtV = toMins(document.getElementById('aobt').value);
+  var mtt = parseInt(mttEl.value);
+  if ([sibtV,aibtV,sobtV,aobtV].indexOf(null) !== -1 || isNaN(mtt) || mtt < 1) {
+    errEl.textContent = 'Please fill in all four times (HH:MM) and a turnaround time.';
+    errEl.style.display = 'block'; return;
+  }
+  var sobt = sobtV, aobt = resolve(aobtV,sobt), sibt = resolve(sibtV,sobt-mtt), aibt = resolve(aibtV,sibt);
+  var totalDelay = aobt - sobt, earliestPush = aibt + mtt;
+  var code93 = Math.max(0, earliestPush - sobt), remaining = Math.max(0, totalDelay - code93);
+  var html = '';
+  if (totalDelay <= 0) {
+    html = '<div class="result-hero"><div class="result-hero-label">Total delay</div><div class="result-hero-value ontime">On time</div><div class="result-hero-sub">SOBT '+fmtT(sobt)+' · AOBT '+fmtT(aobt)+'</div></div>';
+  } else {
+    html = '<div class="result-hero"><div class="result-hero-label">Total delay</div><div class="result-hero-value delay">'+fmt(totalDelay)+'</div><div class="result-hero-sub">SOBT '+fmtT(sobt)+' → AOBT '+fmtT(aobt)+'</div></div><div class="result-section">Breakdown</div>';
+    html += code93 > 0
+      ? '<div class="result-row"><div><div class="result-row-title">Code 93 <span class="badge badge-yes">YES</span></div><div class="result-row-note">AIBT '+fmtT(aibt)+' + '+mtt+' min = '+fmtT(earliestPush)+'<br>'+fmt(code93)+' past SOBT '+fmtT(sobt)+'</div></div><div class="result-row-value accent">'+fmt(code93)+'</div></div>'
+      : '<div class="result-row"><div><div class="result-row-title">Code 93 <span class="badge badge-no">NO</span></div><div class="result-row-note">AIBT '+fmtT(aibt)+' + '+mtt+' min = '+fmtT(earliestPush)+'<br>did not push past SOBT '+fmtT(sobt)+'</div></div><div class="result-row-value success">0 min</div></div>';
+    html += remaining > 0
+      ? '<div class="result-row"><div><div class="result-row-title">Remaining delay</div><div class="result-row-note">Assign your own delay code</div></div><div class="result-row-value danger">'+fmt(remaining)+'</div></div>'
+      : '<div class="result-row"><div><div class="result-row-title">Remaining delay</div><div class="result-row-note">Fully covered by code 93</div></div><div class="result-row-value success">0 min</div></div>';
+  }
+  resEl.innerHTML = html; resEl.style.display = 'block'; clrBtn.style.display = 'block';
+  setTimeout(function() { resEl.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 40);
+}
+function clearDelay() {
+  ['sibt','aibt','sobt','aobt','mtt'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('clear-btn').style.display = 'none';
+}
+
+/* ── Timestamps ── */
+var PAIRS = {
+  'deboard-start':{pair:'deboard-end',  group:'deboarding'},
+  'deboard-end':  {pair:'deboard-start',group:'deboarding'},
+  'fuel-start':   {pair:'fuel-end',     group:'fueling'},
+  'fuel-end':     {pair:'fuel-start',   group:'fueling'},
+  'clean-start':  {pair:'clean-end',    group:'cleaning'},
+  'clean-end':    {pair:'clean-start',  group:'cleaning'},
+  'pax-first':    {pair:'pax-last',     group:'boarding'},
+  'pax-last':     {pair:'pax-first',    group:'boarding'}
+};
+var LABELS = {
+  'deboard-start':'Deboarding Started','deboard-end':'Deboarding Ended',
+  'fuel-start':'Fueling Started','fuel-end':'Fueling Ended',
+  'clean-start':'Cleaning Started','clean-end':'Cleaning Ended',
+  'pax-first':'First Pax In','pax-last':'Last Pax In'
+};
+var STORAGE_KEY = 'delay-calc-timestamps';
+function loadStamps() { try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; } }
+function saveStamps(d) { try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {} }
+function nowStr() { var d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+
+function renderAll() {
+  var data = loadStamps();
+  Object.keys(PAIRS).forEach(function(id) { renderOne(id, data[id] || null); });
+  ['deboarding','fueling','cleaning','boarding'].forEach(function(g) { updateDuration(g); });
+}
+function renderOne(id, timeStr) {
+  var btn = document.getElementById('btn-'+id);
+  var timeEl = document.getElementById('time-'+id);
+  var hintEl = document.getElementById('hint-'+id);
+  if (timeStr) {
+    timeEl.textContent = timeStr; timeEl.classList.add('visible');
+    hintEl.classList.add('visible'); btn.classList.add('stamped');
+  } else {
+    timeEl.textContent = ''; timeEl.classList.remove('visible');
+    hintEl.classList.remove('visible'); btn.classList.remove('stamped');
+  }
+}
+function updateDuration(group) {
+  var keys = Object.keys(PAIRS).filter(function(k) { return PAIRS[k].group === group; });
+  var data = loadStamps(), t0 = data[keys[0]], t1 = data[keys[1]];
+  var footerEl = document.getElementById('dur-'+group);
+  var textEl = document.getElementById('dur-text-'+group);
+  if (t0 && t1) {
+    var m0 = toMins(t0), m1 = toMins(t1);
+    if (m0 !== null && m1 !== null) {
+      var diff = m1 >= m0 ? m1 - m0 : 1440 - (m0 - m1);
+      var label = group.charAt(0).toUpperCase() + group.slice(1);
+      textEl.textContent = label + ' took ' + diff + ' min';
+      footerEl.classList.add('visible'); return;
+    }
+  }
+  if (footerEl) footerEl.classList.remove('visible');
+}
+function handlePress(id) {
+  var data = loadStamps();
+  if (data[id]) { openModal(id); }
+  else { data[id] = nowStr(); saveStamps(data); renderOne(id, data[id]); updateDuration(PAIRS[id].group); }
+}
+function clearStamp(id) {
+  var data = loadStamps(); delete data[id]; saveStamps(data);
+  renderOne(id, null); updateDuration(PAIRS[id].group);
+}
+function clearAllStamps() { try { sessionStorage.removeItem(STORAGE_KEY); } catch(e) {} renderAll(); }
+
+/* ── Modal ── */
+var _modalId = null;
+var modalInput = document.getElementById('modal-input');
+var modalOverlay = document.getElementById('modal-overlay');
+var modalError = document.getElementById('modal-error');
+modalInput.addEventListener('input', function() {
+  var v = this.value.replace(/\D/g,'');
+  if (v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2,4);
+  this.value = v; modalError.style.display = 'none';
+});
+modalInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); saveModal(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+});
+function openModal(id) {
+  _modalId = id;
+  var data = loadStamps();
+  document.getElementById('modal-title').textContent = 'Edit — ' + LABELS[id];
+  modalInput.value = data[id] || '';
+  modalError.style.display = 'none';
+  modalOverlay.classList.add('open');
+  setTimeout(function() { modalInput.focus(); modalInput.select(); }, 120);
+}
+function closeModal() { modalOverlay.classList.remove('open'); _modalId = null; }
+function saveModal() {
+  var val = modalInput.value.trim();
+  if (toMins(val) === null) { modalError.style.display = 'block'; return; }
+  var data = loadStamps(); data[_modalId] = val; saveStamps(data);
+  renderOne(_modalId, val); updateDuration(PAIRS[_modalId].group); closeModal();
+}
+function handleOverlayClick(e) { if (e.target === modalOverlay) closeModal(); }
+
+renderAll();
+
+/* ── Service worker ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').catch(function() {});
+  });
+}
+</script>
+</body>
+</html>
